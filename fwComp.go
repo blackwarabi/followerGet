@@ -14,8 +14,8 @@ import (
 	"github.com/bitly/go-simplejson"
 )
 
-//出力ファイルパス
-const rsFilePath string = "./outFile/"
+//出力フォルダパス
+const outFolderPath string = "./outFile/"
 
 //フォロワーのUSERIDを出力するファイル名
 const oldFollowerFile string = "old.txt"
@@ -23,30 +23,48 @@ const oldFollowerFile string = "old.txt"
 //処理結果ファイル名
 const rsFile string = "result.txt"
 
+/*
+メイン処理
+*/
 func main() {
 
 	var scanner *bufio.Scanner = bufio.NewScanner(os.Stdin)
 	fmt.Println("**********処理開始**********")
-	fmt.Println("アカウントIDを入力してください: ")
+	fmt.Println("アカウントを番号で指定してください（1：gon_gonk 2：blackwarabi）: ")
+
+	//入力値を取得
 	scanner.Scan()
-	account := scanner.Text()
-	if account == "gon_gonk" || account == "blackwarabi" {
+	selectAcc := scanner.Text()
 
-		rsList, e := readOldFollower(rsFilePath, oldFollowerFile, account)
-		if err := e; err != nil {
-			log.Fatal(err)
-		}
-
-		if err := followersComparison(rsList, rsFilePath, rsFile, account); err != nil {
-			log.Fatal(err)
-		}
-
-		if err := outputFollower(rsFilePath, oldFollowerFile, account); err != nil {
-			log.Fatal(err)
-		}
+	//選択した番号に対応したアカウント名を変数に格納
+	account := ""
+	if selectAcc == "1" {
+		account = "gon_gonk"
+	} else if selectAcc == "2" {
+		account = "blackwarabi"
 	} else {
-		fmt.Println("対象アカウント以外のアカウントが指定されました。")
+		fmt.Println("指定外の番号または不正な値が入力されました。")
+		fmt.Println("**********処理完了**********")
+		fmt.Scanf("h")
+		os.Exit(0)
 	}
+
+	//前回のフォロワーのUSERIDを取得する処理
+	rsList, e := readOldFollower(outFolderPath, oldFollowerFile, account)
+	if err := e; err != nil {
+		log.Fatal(err)
+	}
+
+	//フォロワー比較処理
+	if err := followersComparison(rsList, outFolderPath, rsFile, account); err != nil {
+		log.Fatal(err)
+	}
+
+	//最新のフォロワー情報を保存する処理
+	if err := outputFollower(outFolderPath, oldFollowerFile, account); err != nil {
+		log.Fatal(err)
+	}
+
 	fmt.Println("**********処理完了**********")
 	fmt.Scanf("h")
 }
@@ -61,8 +79,10 @@ func setTwKey(account string) *anaconda.TwitterApi {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	// []byte型からjson型へ変換
 	json, _ := simplejson.NewJson(bytes)
+
 	//アカウントで使用トークンを分ける
 	var twikey = map[string]string{}
 	if account == "blackwarabi" {
@@ -91,14 +111,21 @@ func setTwKey(account string) *anaconda.TwitterApi {
 old.txtより前回実行時のフォロワーのUSERIDを取得し、スライスに格納して呼び出し元に返す
 */
 func readOldFollower(filepath string, filename string, account string) (reList []string, err error) {
-	//txtファイルより前回のフォロワー一覧を取得する
+	//outFileフォルダが存在しているかチェックし、なければ新規作成する
+	if _, err := os.Stat(outFolderPath); os.IsNotExist(err) {
+		os.Mkdir(outFolderPath, 0777)
+	}
+
+	//txtファイルより前回のフォロワー一覧を取得する（存在しなければ新規でファイルを作る）
 	file, err := os.OpenFile(filepath+account+"_"+filename, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, err
 	}
 	scanner := bufio.NewScanner(file)
+
 	//戻り値用のスライスを宣言
 	var rsSlice []string
+
 	//読み取ったold.txtのUSERIDをスライスに格納
 	for scanner.Scan() {
 		scText := scanner.Text()
@@ -130,7 +157,7 @@ func followersComparison(list []string, filepath string, filename string, accoun
 	}
 
 	//比較
-	//双方の要素数が前回取得<=今回取得場合は処理しない
+	//双方の要素数が前回取得<=今回取得の場合は処理しない
 	if len(list) <= len(rsSlice) {
 		fmt.Println("処理対象なし")
 		return nil
@@ -141,6 +168,7 @@ func followersComparison(list []string, filepath string, filename string, accoun
 		if !arrayContains(rsSlice, list[i]) {
 			toInt, _ := strconv.Atoi(list[i])
 			v := url.Values{}
+
 			//USERIDからスクリーンネームとアカウント名を取得
 			userdata, _ := api.GetUsersShowById(int64(toInt), v)
 			_, err := file.WriteString("ID:" + userdata.ScreenName + " アカウント名:" + userdata.Name + "\n")
@@ -150,6 +178,7 @@ func followersComparison(list []string, filepath string, filename string, accoun
 			fmt.Println("ID:" + userdata.ScreenName + " アカウント名:" + userdata.Name)
 		}
 	}
+
 	//処理結果をGMAILで送信
 	if err := sendGmail(account); err != nil {
 		log.Fatal(err)
@@ -213,7 +242,7 @@ func sendGmail(account string) error {
 	)
 
 	//txtファイルより処理結果一覧を取得する
-	file, err := os.OpenFile(rsFilePath+account+"_"+rsFile, os.O_RDONLY, 0666)
+	file, err := os.OpenFile(outFolderPath+account+"_"+rsFile, os.O_RDONLY, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
