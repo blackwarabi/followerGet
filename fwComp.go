@@ -34,15 +34,15 @@ func main() {
 
 		rsList, e := readOldFollower(rsFilePath, oldFollowerFile, account)
 		if err := e; err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
 		if err := followersComparison(rsList, rsFilePath, rsFile, account); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
 		if err := outputFollower(rsFilePath, oldFollowerFile, account); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	} else {
 		fmt.Println("対象アカウント以外のアカウントが指定されました。")
@@ -126,7 +126,7 @@ func followersComparison(list []string, filepath string, filename string, accoun
 	//処理結果用txtファイル作成
 	file, err := os.Create(filepath + account + "_" + filename)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
 	//比較
@@ -145,14 +145,14 @@ func followersComparison(list []string, filepath string, filename string, accoun
 			userdata, _ := api.GetUsersShowById(int64(toInt), v)
 			_, err := file.WriteString("ID:" + userdata.ScreenName + " アカウント名:" + userdata.Name + "\n")
 			if err != nil {
-				return err
+				log.Fatal(err)
 			}
 			fmt.Println("ID:" + userdata.ScreenName + " アカウント名:" + userdata.Name)
 		}
 	}
 	//処理結果をGMAILで送信
 	if err := sendGmail(account); err != nil {
-		return err
+		log.Fatal(err)
 	}
 	defer file.Close()
 	return nil
@@ -164,7 +164,7 @@ func followersComparison(list []string, filepath string, filename string, accoun
 func outputFollower(filepath string, filename string, account string) error {
 	file, err := os.Create(filepath + account + "_" + filename)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 	api := setTwKey(account)
 	pages := api.GetFollowersIdsAll(nil)
@@ -173,7 +173,7 @@ func outputFollower(filepath string, filename string, account string) error {
 			toString := strconv.Itoa(int(page.Ids[cnt]))
 			_, err := file.WriteString(toString + "\n")
 			if err != nil {
-				return err
+				log.Fatal(err)
 			}
 		}
 	}
@@ -215,7 +215,7 @@ func sendGmail(account string) error {
 	//txtファイルより処理結果一覧を取得する
 	file, err := os.OpenFile(rsFilePath+account+"_"+rsFile, os.O_RDONLY, 0666)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 	scanner := bufio.NewScanner(file)
 	//メール本文用の文字列を作成
@@ -237,7 +237,7 @@ func sendGmail(account string) error {
 				message),
 	)
 	if err2 != nil {
-		return err2
+		log.Fatal(err)
 	}
 	defer file.Close()
 	return nil
