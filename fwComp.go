@@ -75,7 +75,7 @@ TwitterAPIを呼び出すのに必要なトークン等を設定する
 func setTwKey(account string) *anaconda.TwitterApi {
 	//TwitterのAPIトークン
 	//jsonファイルの読み込み
-	bytes, err := ioutil.ReadFile("./context.json")
+	bytes, err := ioutil.ReadFile("./config.json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -227,7 +227,7 @@ result.txtを元にメール送信
 */
 func sendGmail(account string) error {
 	//jsonファイルの読み込み
-	bytes, err := ioutil.ReadFile("./context.json")
+	bytes, err := ioutil.ReadFile("./config.json")
 	if err != nil {
 		log.Fatal(err)
 	}
