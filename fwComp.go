@@ -28,40 +28,21 @@ const rsFile string = "result.txt"
 */
 func main() {
 
-	var scanner *bufio.Scanner = bufio.NewScanner(os.Stdin)
 	fmt.Println("**********処理開始**********")
-	fmt.Println("アカウントを番号で指定してください（1：gon_gonk 2：blackwarabi）: ")
-
-	//入力値を取得
-	scanner.Scan()
-	selectAcc := scanner.Text()
-
-	//選択した番号に対応したアカウント名を変数に格納
-	account := ""
-	if selectAcc == "1" {
-		account = "gon_gonk"
-	} else if selectAcc == "2" {
-		account = "blackwarabi"
-	} else {
-		fmt.Println("指定外の番号または不正な値が入力されました。")
-		fmt.Println("**********処理完了**********")
-		fmt.Scanf("h")
-		os.Exit(0)
-	}
 
 	//前回のフォロワーのUSERIDを取得する処理
-	rsList, e := readOldFollower(outFolderPath, oldFollowerFile, account)
+	rsList, e := readOldFollower(outFolderPath, oldFollowerFile)
 	if err := e; err != nil {
 		log.Fatal(err)
 	}
 
 	//フォロワー比較処理
-	if err := followersComparison(rsList, outFolderPath, rsFile, account); err != nil {
+	if err := followersComparison(rsList, outFolderPath, rsFile); err != nil {
 		log.Fatal(err)
 	}
 
 	//最新のフォロワー情報を保存する処理
-	if err := outputFollower(outFolderPath, oldFollowerFile, account); err != nil {
+	if err := outputFollower(outFolderPath, oldFollowerFile); err != nil {
 		log.Fatal(err)
 	}
 
@@ -72,10 +53,10 @@ func main() {
 /*
 TwitterAPIを呼び出すのに必要なトークン等を設定する
 */
-func setTwKey(account string) *anaconda.TwitterApi {
+func setTwKey() *anaconda.TwitterApi {
 	//TwitterのAPIトークン
 	//jsonファイルの読み込み
-	bytes, err := ioutil.ReadFile("./context.json")
+	bytes, err := ioutil.ReadFile("./config.json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,20 +66,12 @@ func setTwKey(account string) *anaconda.TwitterApi {
 
 	//アカウントで使用トークンを分ける
 	var twikey = map[string]string{}
-	if account == "blackwarabi" {
-		twikey = map[string]string{
-			"cons_key":  json.Get("blackwarabi_cons_key").MustString(),
-			"cons_sec":  json.Get("blackwarabi_cons_sec").MustString(),
-			"accto_key": json.Get("blackwarabi_accto_key").MustString(),
-			"accto_sec": json.Get("blackwarabi_accto_sec").MustString(),
-		}
-	} else if account == "gon_gonk" {
-		twikey = map[string]string{
-			"cons_key":  json.Get("gonk_cons_key").MustString(),
-			"cons_sec":  json.Get("gonk_cons_sec").MustString(),
-			"accto_key": json.Get("gonk_accto_key").MustString(),
-			"accto_sec": json.Get("gonk_accto_sec").MustString(),
-		}
+
+	twikey = map[string]string{
+		"cons_key":  json.Get("cons_key").MustString(),
+		"cons_sec":  json.Get("cons_sec").MustString(),
+		"accto_key": json.Get("accto_key").MustString(),
+		"accto_sec": json.Get("accto_sec").MustString(),
 	}
 
 	anaconda.SetConsumerKey(twikey["cons_key"])
@@ -110,14 +83,14 @@ func setTwKey(account string) *anaconda.TwitterApi {
 /*
 old.txtより前回実行時のフォロワーのUSERIDを取得し、スライスに格納して呼び出し元に返す
 */
-func readOldFollower(filepath string, filename string, account string) (reList []string, err error) {
+func readOldFollower(filepath string, filename string) (reList []string, err error) {
 	//outFileフォルダが存在しているかチェックし、なければ新規作成する
 	if _, err := os.Stat(outFolderPath); os.IsNotExist(err) {
 		os.Mkdir(outFolderPath, 0777)
 	}
 
 	//txtファイルより前回のフォロワー一覧を取得する（存在しなければ新規でファイルを作る）
-	file, err := os.OpenFile(filepath+account+"_"+filename, os.O_RDONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(filepath+filename, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, err
 	}
@@ -139,8 +112,8 @@ func readOldFollower(filepath string, filename string, account string) (reList [
 過去のフォロワーのUSERIDをold.txtファイルから取得し、現在のフォロワーのUSERIDと比較する。
 その後、差分が出たUSERIDをresult.txtに出力する
 */
-func followersComparison(list []string, filepath string, filename string, account string) error {
-	api := setTwKey(account)
+func followersComparison(list []string, filepath string, filename string) error {
+	api := setTwKey()
 	pages := api.GetFollowersIdsAll(nil)
 	var rsSlice []string
 	for page := range pages {
@@ -151,7 +124,7 @@ func followersComparison(list []string, filepath string, filename string, accoun
 	}
 
 	//処理結果用txtファイル作成
-	file, err := os.Create(filepath + account + "_" + filename)
+	file, err := os.Create(filepath + filename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -180,7 +153,7 @@ func followersComparison(list []string, filepath string, filename string, accoun
 	}
 
 	//処理結果をGMAILで送信
-	if err := sendGmail(account); err != nil {
+	if err := sendGmail(); err != nil {
 		log.Fatal(err)
 	}
 	defer file.Close()
@@ -190,12 +163,12 @@ func followersComparison(list []string, filepath string, filename string, accoun
 /*
 現在のフォロワーのUSERIDを取得し、結果をold.txtに出力する
 */
-func outputFollower(filepath string, filename string, account string) error {
-	file, err := os.Create(filepath + account + "_" + filename)
+func outputFollower(filepath string, filename string) error {
+	file, err := os.Create(filepath + filename)
 	if err != nil {
 		log.Fatal(err)
 	}
-	api := setTwKey(account)
+	api := setTwKey()
 	pages := api.GetFollowersIdsAll(nil)
 	for page := range pages {
 		for cnt := 0; len(page.Ids) > cnt; cnt++ {
@@ -225,9 +198,9 @@ func arrayContains(arr []string, str string) bool {
 /*
 result.txtを元にメール送信
 */
-func sendGmail(account string) error {
+func sendGmail() error {
 	//jsonファイルの読み込み
-	bytes, err := ioutil.ReadFile("./context.json")
+	bytes, err := ioutil.ReadFile("./config.json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -242,7 +215,7 @@ func sendGmail(account string) error {
 	)
 
 	//txtファイルより処理結果一覧を取得する
-	file, err := os.OpenFile(outFolderPath+account+"_"+rsFile, os.O_RDONLY, 0666)
+	file, err := os.OpenFile(outFolderPath+rsFile, os.O_RDONLY, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
