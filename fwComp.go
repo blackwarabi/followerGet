@@ -109,7 +109,7 @@ func readOldFollower(filepath string, filename string) (reList []string, err err
 }
 
 /*
-過去のフォロワーのUSERIDをold.txtファイルから取得し、現在のフォロワーのUSERIDと比較する。
+過去のフォロワーのUSERIDを引数から取得し、現在のフォロワーのUSERIDと比較する。
 その後、差分が出たUSERIDをresult.txtに出力する
 */
 func followersComparison(list []string, filepath string, filename string) error {
