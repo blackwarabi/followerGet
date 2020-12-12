@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -28,13 +29,11 @@ const rsFile string = "result.txt"
 */
 func main() {
 
-	var scanner *bufio.Scanner = bufio.NewScanner(os.Stdin)
+	flag.Parse()
 	fmt.Println("**********処理開始**********")
-	fmt.Println("アカウントを番号で指定してください（1：gon_gonk 2：blackwarabi）: ")
 
-	//入力値を取得
-	scanner.Scan()
-	selectAcc := scanner.Text()
+	//引数を取得
+	selectAcc := flag.Arg(0)
 
 	//選択した番号に対応したアカウント名を変数に格納
 	account := ""
@@ -45,7 +44,6 @@ func main() {
 	} else {
 		fmt.Println("指定外の番号または不正な値が入力されました。")
 		fmt.Println("**********処理完了**********")
-		fmt.Scanf("h")
 		os.Exit(0)
 	}
 
@@ -66,7 +64,6 @@ func main() {
 	}
 
 	fmt.Println("**********処理完了**********")
-	fmt.Scanf("h")
 }
 
 /*
