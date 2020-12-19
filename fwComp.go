@@ -258,7 +258,7 @@ func sendGmail(account string) error {
 		[]string{json.Get("address").MustString()},
 		[]byte(
 			"To:\r\n"+
-				"Subject:リムーブアカウント\r\n"+
+				"Subject:"+account+"のフォロワーがリムーブされました。\r\n"+
 				"\r\n"+
 				message),
 	)
