@@ -22,7 +22,7 @@ const outFolderPath string = "./outFile/"
 const oldFollowerFile string = "old.txt"
 
 //処理結果ファイル名
-const rsFile string = "result.txt"
+const resultFile string = "result.txt"
 
 /*
 メイン処理
@@ -54,8 +54,12 @@ func main() {
 	}
 
 	//フォロワー比較処理
-	if err := followersComparison(rsList, outFolderPath, rsFile, account); err != nil {
+	exitFlg, err := followersComparison(rsList, outFolderPath, resultFile, account)
+	if err != nil {
 		log.Fatal(err)
+	} else if exitFlg {
+		fmt.Println("**********処理完了**********")
+		os.Exit(0)
 	}
 
 	//最新のフォロワー情報を保存する処理
@@ -136,7 +140,7 @@ func readOldFollower(filepath string, filename string, account string) (reList [
 過去のフォロワーのUSERIDを引数から取得し、現在のフォロワーのUSERIDと比較する。
 その後、差分が出たUSERIDをresult.txtに出力する
 */
-func followersComparison(list []string, filepath string, filename string, account string) error {
+func followersComparison(list []string, filepath string, filename string, account string) (exitFlg bool, err error) {
 	api := setTwKey(account)
 	pages := api.GetFollowersIdsAll(nil)
 	var rsSlice []string
@@ -157,9 +161,13 @@ func followersComparison(list []string, filepath string, filename string, accoun
 	//双方の要素数が前回取得<=今回取得の場合は処理しない
 	if len(list) <= len(rsSlice) {
 		fmt.Println("処理対象なし")
-		return nil
+		return false, nil
 	}
-
+	//Twitterの障害などで現在のフォロワーが取得できなかったときの対策
+	if len(rsSlice) == 0 {
+		fmt.Println("現在のフォロワーが取得できませんでした。")
+		return true, nil
+	}
 	for i := 0; len(list) > i; i++ {
 		//リムーブされたフォロワーを検索し、USERIDをファイルに出力
 		if !arrayContains(rsSlice, list[i]) {
@@ -181,7 +189,7 @@ func followersComparison(list []string, filepath string, filename string, accoun
 		log.Fatal(err)
 	}
 	defer file.Close()
-	return nil
+	return false, nil
 }
 
 /*
@@ -239,7 +247,7 @@ func sendGmail(account string) error {
 	)
 
 	//txtファイルより処理結果一覧を取得する
-	file, err := os.OpenFile(outFolderPath+account+"_"+rsFile, os.O_RDONLY, 0666)
+	file, err := os.OpenFile(outFolderPath+account+"_"+resultFile, os.O_RDONLY, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
